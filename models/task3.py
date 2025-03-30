@@ -136,7 +136,7 @@ def train_boosting_model(X_train, X_val, y_train, y_val, X_test, num_classes):
     params = {
         "objective": "multi:softmax",
         "num_class": num_classes,
-        "learning_rate": 0.1,
+        "learning_rate": 0.01,
         "max_depth": 6,
         "subsample": 0.8,
         "colsample_bytree": 0.8,
@@ -145,7 +145,7 @@ def train_boosting_model(X_train, X_val, y_train, y_val, X_test, num_classes):
         "device": "cuda"
     }
 
-    model = xgb.train(params, dtrain, num_boost_round=100, evals=[(dval, "val")], verbose_eval=False)
+    model = xgb.train(params, dtrain, num_boost_round=300, evals=[(dval, "val")], verbose_eval=False)
 
     # Predicción en validación
     y_pred_val = model.predict(dval).astype(int)
