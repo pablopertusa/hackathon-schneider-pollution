@@ -1,18 +1,25 @@
 import polars as pl
 import numpy as np
-from datetime import datetime
-from sklearn.preprocessing import MinMaxScaler
+from datetime import datetime, timezone
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import mean_squared_error
 import json
-
+from astral.sun import sun
+from astral import LocationInfo
 
 def set_seed():
     np.random.seed(27)
 
 set_seed()
+
+def is_daytime(lat, lon, timestamp):
+    location = LocationInfo(latitude=lat, longitude=lon)
+    date = datetime(timestamp.year, timestamp.month, timestamp.day, timestamp.hour, timestamp.minute, timestamp.second, tzinfo=timezone.utc)
+    s = sun(location.observer, date=date, tzinfo=timezone.utc)
+    return int(s['sunrise'] <= date <= s['sunset'])
 
 def obtain_train_data(pollutant_data: pl.DataFrame, measurement_data: pl.DataFrame, instrument_data: pl.DataFrame, station_code: int, 
                       pollutant_name: str, scaler_x: MinMaxScaler, scaler_y: MinMaxScaler):
@@ -31,16 +38,22 @@ def obtain_train_data(pollutant_data: pl.DataFrame, measurement_data: pl.DataFra
             pl.col("Measurement date").dt.month().alias("month"),
             pl.col("Measurement date").dt.year().alias("year"),
             pl.col("Measurement date").dt.hour().alias("hour"),
+            pl.col("Measurement date").dt.weekday().alias("weekday")
         )
         .filter(pl.col("Station code") == station_code)
         .filter(pl.col("Item code") == item_code)
-        .select([pollutant_name, "day", "month", "year", "hour"])
+    )
+    df = (
+        df
+        .with_columns(
+            pl.struct(["Latitude", "Longitude", "Measurement date"]).map_elements(lambda row: is_daytime(row["Latitude"], row["Longitude"], row["Measurement date"]), return_dtype=int).alias("is_day")
+        )
     )
 
     df = df.with_columns([pl.col(col).cast(pl.Float64) for col in df.columns])
 
 
-    X = df.select(["day", "month", "year", "hour"]).to_numpy()
+    X = df.select(["day", "month", "year", "hour", "weekday", "is_day"]).to_numpy()
     y = df.select(pollutant_name).to_numpy()
 
     X_scaled = scaler_x.fit_transform(X)
@@ -73,7 +86,7 @@ def reverse_scaler(preds: np.array, scaler: MinMaxScaler):
 
 def train_boosting_model(X_train, X_val, y_train, y_val, X_test, scaler_y):
     """
-    Entrena un modelo de XGBoost, lo valida y genera predicciones.
+    Entrena un modelo de XGBoost en GPU, lo valida y genera predicciones.
     
     Parámetros:
         X_train: np.array, características de entrenamiento
@@ -86,28 +99,36 @@ def train_boosting_model(X_train, X_val, y_train, y_val, X_test, scaler_y):
     Retorna:
         y_pred_test: np.array, predicciones en los datos de prueba
     """
-    model = xgb.XGBRegressor(
-        objective='reg:squarederror',
-        n_estimators=100,
-        learning_rate=0.1,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        random_state=27
-    )
-    
-    model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
-    
+
+    # Convertir a DMatrix de XGBoost compatible con GPU
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+    dval = xgb.DMatrix(X_val, label=y_val)
+    dtest = xgb.DMatrix(X_test)
+
+    # Configuración del modelo
+    params = {
+        "objective": "reg:squarederror",
+        "learning_rate": 0.1,
+        "max_depth": 6,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "random_state": 27,
+        "device": "cuda"
+    }
+
+    model = xgb.train(params, dtrain, num_boost_round=100, evals=[(dval, "val")], verbose_eval=False)
+
     # Predicción en validación
-    y_pred_val = model.predict(X_val)
+    y_pred_val = model.predict(dval)
     mse_val = mean_squared_error(y_val, y_pred_val)
     print(f"Error cuadrático medio en validación: {mse_val:.4f}")
-    
+
     # Predicción en test
-    y_pred_test = model.predict(X_test)
+    y_pred_test = model.predict(dtest)
     y_pred_test = reverse_scaler(y_pred_test.reshape(-1, 1), scaler_y)
-    
+
     return y_pred_test.flatten()
+
 
 
 pollutant = pl.read_csv("data/raw/pollutant_data.csv")
@@ -118,12 +139,12 @@ future = [
     {
         "Station code" : 205,
         "pollutant name" : "SO2",
-        "period" : [datetime(year = 2023, month= 11, day = 1, hour = 0), datetime(year = 2023, month= 11, day = 30, hour = 23)]
+        "period" : [datetime(year = 2023, month= 11, day = 1, hour = 0, tzinfo=timezone.utc), datetime(year = 2023, month= 11, day = 30, hour = 23, tzinfo=timezone.utc)]
     },
     {
         "Station code" : 209,
         "pollutant name" : "NO2",
-        "period" : [datetime(year = 2023, month= 9, day = 1, hour = 0), datetime(year = 2023, month= 9, day = 30, hour = 23)]
+        "period" : [datetime(year = 2023, month= 9, day = 1, hour = 0, tzinfo=timezone.utc), datetime(year = 2023, month= 9, day = 30, hour = 23, tzinfo=timezone.utc)]
     },
     {
         "Station code" : 223,
