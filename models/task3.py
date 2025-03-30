@@ -40,11 +40,10 @@ def obtain_train_data(pollutant_data: pl.DataFrame, measurement_data: pl.DataFra
                       pollutant_name: str, scaler_x: MinMaxScaler):
 
     measurement_data = measurement_data.join(instrument_data, on=["Measurement date", "Station code"], how="inner")
-    normal_data = measurement_data.filter(pl.col("Instrument status") == 0)
     item_code = pollutant_data.filter(pl.col("Item name") == pollutant_name)["Item code"].to_list()[0]
 
     df = (
-        normal_data
+        measurement_data
         .with_columns(pl.col("Measurement date").str.to_datetime())
         .with_columns(
             pl.col("Measurement date").dt.day().alias("day"),
@@ -77,10 +76,10 @@ def obtain_train_data(pollutant_data: pl.DataFrame, measurement_data: pl.DataFra
     X_scaled = scaler_x.fit_transform(X)
 
     X_train, X_val, y_train, y_val = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
-    #smote = SMOTE(random_state=42)
-    #X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+    smote = SMOTE(random_state=27, k_neighbors=2)
+    X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
 
-    return X_train, X_val, y_train, y_val, encoder
+    return X_train_resampled, X_val, y_train_resampled, y_val, encoder
 
 def obtain_test_data(start_date: datetime, end_date: datetime, lat: float, lon: float, encoder):
     date_range = pd.date_range(start=start_date, end=end_date, freq="h")

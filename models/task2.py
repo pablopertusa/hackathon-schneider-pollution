@@ -141,7 +141,7 @@ def train_boosting_model(X_train, X_val, y_train, y_val, X_test, scaler_y):
         "device": "cuda"
     }
 
-    model = xgb.train(params, dtrain, num_boost_round=100, evals=[(dval, "val")], verbose_eval=False)
+    model = xgb.train(params, dtrain, num_boost_round=20, evals=[(dval, "val")], verbose_eval=False)
 
     # Predicción en validación
     y_pred_val = model.predict(dval)
