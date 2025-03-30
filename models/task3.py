@@ -5,10 +5,12 @@ from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import xgboost as xgb
-from sklearn.metrics import mean_squared_error
+from sklearn.utils.class_weight import compute_sample_weight
+from sklearn.metrics import f1_score
 import json
 from astral.sun import sun
 from astral import LocationInfo
+
 
 def set_seed():
     np.random.seed(27)
@@ -123,8 +125,10 @@ def train_boosting_model(X_train, X_val, y_train, y_val, X_test, num_classes):
     y_train = y_train.astype(int).flatten()
     y_val = y_val.astype(int).flatten()
 
+
     # Convertir a DMatrix de XGBoost compatible con GPU
-    dtrain = xgb.DMatrix(X_train, label=y_train)
+    weights = compute_sample_weight(class_weight="balanced", y=y_train.flatten())
+    dtrain = xgb.DMatrix(X_train, label=y_train, weight=weights)
     dval = xgb.DMatrix(X_val, label=y_val)
     dtest = xgb.DMatrix(X_test)
 
@@ -144,9 +148,11 @@ def train_boosting_model(X_train, X_val, y_train, y_val, X_test, num_classes):
     model = xgb.train(params, dtrain, num_boost_round=100, evals=[(dval, "val")], verbose_eval=False)
 
     # Predicción en validación
-    y_pred_val = model.predict(dval)
-    acc_val = (y_pred_val == y_val).mean()
-    print(f"Precisión en validación: {acc_val:.4f}")
+    y_pred_val = model.predict(dval).astype(int)
+    
+    # Calcular F1-score macro
+    f1_macro = f1_score(y_val, y_pred_val, average="macro")
+    print(f"F1-score macro en validación: {f1_macro:.4f}")
 
     # Predicción en test
     y_pred_test = model.predict(dtest)
