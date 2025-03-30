@@ -133,15 +133,15 @@ def train_boosting_model(X_train, X_val, y_train, y_val, X_test, scaler_y):
     # Configuración del modelo
     params = {
         "objective": "reg:squarederror",
-        "learning_rate": 0.1,
-        "max_depth": 6,
+        "learning_rate": 0.05,
+        "max_depth": 8,
         "subsample": 0.8,
         "colsample_bytree": 0.8,
         "random_state": 27,
         "device": "cuda"
     }
 
-    model = xgb.train(params, dtrain, num_boost_round=100, evals=[(dval, "val")], verbose_eval=False)
+    model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval, "val")], verbose_eval=False)
 
     # Predicción en validación
     y_pred_val = model.predict(dval)

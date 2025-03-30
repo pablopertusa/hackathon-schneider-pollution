@@ -10,6 +10,8 @@ from sklearn.metrics import f1_score
 import json
 from astral.sun import sun
 from astral import LocationInfo
+from imblearn.over_sampling import SMOTE
+
 
 
 def set_seed():
@@ -75,6 +77,8 @@ def obtain_train_data(pollutant_data: pl.DataFrame, measurement_data: pl.DataFra
     X_scaled = scaler_x.fit_transform(X)
 
     X_train, X_val, y_train, y_val = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+    #smote = SMOTE(random_state=42)
+    #X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
 
     return X_train, X_val, y_train, y_val, encoder
 
@@ -136,16 +140,16 @@ def train_boosting_model(X_train, X_val, y_train, y_val, X_test, num_classes):
     params = {
         "objective": "multi:softmax",
         "num_class": num_classes,
-        "learning_rate": 0.01,
-        "max_depth": 6,
-        "subsample": 0.8,
-        "colsample_bytree": 0.8,
+        "learning_rate": 0.05,
+        "max_depth": 8,
+        "subsample": 0.5,
+        "colsample_bytree": 0.5,
         "random_state": 27,
         "eval_metric": "mlogloss",  # Pérdida para multiclase
         "device": "cuda"
     }
 
-    model = xgb.train(params, dtrain, num_boost_round=300, evals=[(dval, "val")], verbose_eval=False)
+    model = xgb.train(params, dtrain, num_boost_round=1000, evals=[(dval, "val")], verbose_eval=False)
 
     # Predicción en validación
     y_pred_val = model.predict(dval).astype(int)
