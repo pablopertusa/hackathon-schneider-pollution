@@ -162,32 +162,32 @@ instrument = pl.read_csv("data/raw/instrument_data.csv")
 
 future = [
     {
-        "Station code" : 205,
+        "Station code" : 206,
         "pollutant name" : "SO2",
-        "period" : [datetime(year = 2023, month= 11, day = 1, hour = 0), datetime(year = 2023, month= 11, day = 30, hour = 23)]
+        "period" : [datetime(year = 2023, month=7, day = 1, hour = 0), datetime(year = 2023, month=7, day = 31, hour = 23)]
     },
     {
-        "Station code" : 209,
+        "Station code" : 211,
         "pollutant name" : "NO2",
-        "period" : [datetime(year = 2023, month= 9, day = 1, hour = 0), datetime(year = 2023, month= 9, day = 30, hour = 23)]
+        "period" : [datetime(year = 2023, month=8, day = 1, hour = 0), datetime(year = 2023, month=8, day = 31, hour = 23)]
     },
     {
-        "Station code" : 223,
+        "Station code" : 217,
         "pollutant name" : "O3",
-        "period" : [datetime(year = 2023, month= 7, day = 1, hour = 0), datetime(year = 2023, month= 7, day = 31, hour = 23)]
+        "period" : [datetime(year = 2023, month=9, day = 1, hour = 0), datetime(year = 2023, month=9, day = 30, hour = 23)]
     },
     {
-        "Station code" : 224,
+        "Station code" : 219,
         "pollutant name" : "CO",
         "period" : [datetime(year = 2023, month= 10, day = 1, hour = 0), datetime(year = 2023, month= 10, day = 31, hour = 23)]
     },
     {
-        "Station code" : 226,
+        "Station code" : 225,
         "pollutant name" : "PM10",
-        "period" : [datetime(year = 2023, month= 8, day = 1, hour = 0), datetime(year = 2023, month= 8, day = 31, hour = 23)]
+        "period" : [datetime(year = 2023, month=11, day = 1, hour = 0), datetime(year = 2023, month=11, day = 30, hour = 23)]
     },
     {
-        "Station code" : 227,
+        "Station code" : 228,
         "pollutant name" : "PM2.5",
         "period" : [datetime(year = 2023, month= 12, day = 1, hour = 0), datetime(year = 2023, month= 12, day = 31, hour = 23)]
     }
